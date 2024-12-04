@@ -1,0 +1,96 @@
+/*
+Релационата база е дефинирана преку следните релации:
+Vraboten(ID, ime, prezime, datum_r, datum_v, obrazovanie, plata)
+Shalterski_rabotnik(ID*)
+Klient(MBR_k, ime, prezime, adresa, datum)
+Smetka(MBR_k_s*, broj, valuta, saldo)
+Transakcija_shalter(ID, ID_v*, MBR_k*, MBR_k_s*, broj*, datum, suma, tip)
+Bankomat(ID, lokacija, datum_p, zaliha)
+Transakcija_bankomat(ID, MBR_k_s*, broj*, ID_b*, datum, suma).
+
+1) Доколку се избрише одреден вработен, информациите за извршените трансакции треба да останат зачувани во базата на податоци.
+2) Информацијата за ID на банкомат која се чува во трансакциите спроведени на банкомат треба да има предефинирана вредност од -1.
+3) Информацијата за образованието на вработениот мора да биде пополнето и да биде некоја од вредностите 'PhD', 'MSc', 'High School', 'BSc'
+4) Датумот на извршување на трансакција не смее да биде во периодот од 30.12.2020 до 14.01.2021.
+5) Типот на трансакцијата може да има една од двете вредности 'uplata' или 'isplata'
+6) Вредноста на залихата во банкоматите не смее да има вредност помала од 0.
+7) Датумот на раѓање на вработениот мора да биде пред неговиот датум на вработување
+8) Локациите на банкоматите мора да имаат различни (уникатни) вредности
+9) Адресата на клинетите треба да има предефинирана вреднот 'Ne enavedena'
+10) Доколку се затвори одреден банкомат и истиот се избрише од базата,информациите за извршените трансакции за дадениот банкомат треба да останат зачувани во базата на податоци со предефинирана вредност.
+*/
+
+CREATE TABLE Vraboten(
+    ID INT PRIMARY KEY,
+    ime TEXT,
+    prezime TEXT, 
+    datum_r DATE, 
+    datum_v DATE,
+    obrazovanie TEXT NOT NULL, 
+    plata INT,
+    CONSTRAINT DATUM_VRABOTUAVNJE CHECK (datum_r<datum_v),
+    CONSTRAINT OBRAZOVANIE_VALUES CHECK (obrazovanie IN ("PhD", "MSc", "High School", "BSc"))
+
+);
+ 
+CREATE TABLE Shalterski_rabotnik(
+    ID INT PRIMARY KEY,
+    FOREIGN KEY (ID) REFERENCES Vraboten(ID) ON DELETE CASCADE ON UPDATE CASCADE
+);
+ 
+ 
+CREATE TABLE Klient(
+    MBR_k INT PRIMARY KEY,
+    ime TEXT,
+    prezime TEXT,
+    adresa TEXT DEFAULT 'Ne e navedena',
+    datum DATE
+);
+ 
+CREATE TABLE Smetka(
+    MBR_k INT,
+    broj INT,
+    valuta TEXT,
+    saldo INT,
+    PRIMARY KEY (MBR_k,broj),
+    FOREIGN KEY (MBR_k) REFERENCES Klient (MBR_k) ON DELETE CASCADE ON UPDATE CASCADE
+);
+ 
+CREATE TABLE Transakcija_shalter(
+    ID INT PRIMARY KEY, 
+    ID_v INT, 
+    MBR_k INT, 
+    MBR_k_s INT, 
+    broj INT, 
+    datum DATE,
+    suma INT, 
+    tip TEXT,
+    --CONSTRAINT DATUM_TRANSAKCIJA CHECK(datum NOT BETWEEN "2020-12-30" AND "2021-01-14"),
+    CONSTRAINT TIP_VALUES CHECK (tip IN ("uplata","isplata")),
+    FOREIGN KEY (ID_v) REFERENCES Shalterski_rabotnik(ID) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (MBR_k) REFERENCES Klient(MBR_k) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (MBR_k_s,broj) REFERENCES Smetka(MBR_k,broj) ON DELETE CASCADE ON UPDATE CASCADE
+);
+ 
+CREATE TABLE Bankomat(
+    ID INT PRIMARY KEY,
+    lokacija TEXT,
+    datum DATE,
+    zaliha INT,
+    CONSTRAINT VREDNOST_ZALIHA CHECK(zaliha>=0),
+    UNIQUE (lokacija)
+);
+ 
+CREATE TABLE Transakcija_bankomat(
+    ID INT PRIMARY KEY,
+    MBR_k_s INT,
+    broj INT,
+    ID_b INT DEFAULT -1,
+    datum DATE,
+    suma INT,
+    CONSTRAINT DATUM_TRANSAKCIJA_2 CHECK(datum NOT BETWEEN "2020-12-30" AND "2021-01-14"),
+    FOREIGN KEY (ID_b) REFERENCES Bankomat (ID) ON DELETE SET DEFAULT ON UPDATE CASCADE,
+    --FOREIGN KEY (broj) REFERENCES Smetka (broj) ON DELETE CASCADE ON UPDATE CASCADE,
+    --FOREIGN KEY (MBR_k_s) REFERENCES Smetka (MBR_k) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (MBR_k_s,broj) REFERENCES Smetka (MBR_k,broj) ON DELETE CASCADE ON UPDATE CASCADE
+);
